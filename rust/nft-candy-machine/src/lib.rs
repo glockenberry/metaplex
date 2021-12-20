@@ -250,11 +250,11 @@ pub mod nft_candy_machine {
     }
 
     pub fn add_wallet_to_whitelist<'info>(
-        ctx: Context<'_, '_, '_, 'info, AddWalletToWhitelist<'info>>,
-        wallet: Pubkey,
+        ctx: Context<'_, '_, '_, 'info, AddWalletToWhitelist<'info>>
     ) -> ProgramResult {
         let candy_machine = &mut ctx.accounts.candy_machine;
         let clock = &ctx.accounts.clock;
+        let wallet = &ctx.accounts.payer;
 
         match candy_machine.data.go_live_date {
             None => {
@@ -269,8 +269,8 @@ pub mod nft_candy_machine {
             }
         }
 
-        if !candy_machine.data.whitelist.contains(&wallet) {
-            candy_machine.data.whitelist.push(wallet);
+        if !candy_machine.data.whitelist.contains(&wallet.key()) {
+            candy_machine.data.whitelist.push(wallet.key());
             msg!("Wallet added to whitelist!");
         } else {
             msg!("Wallet already in whitelist!");
@@ -579,17 +579,14 @@ pub struct UpdateCandyMachine<'info> {
 
 #[derive(Accounts)]
 pub struct AddWalletToWhitelist<'info> {
-    config: Account<'info, Config>,
     #[account(
         mut,
-        has_one = config,
-        has_one = wallet,
-        seeds = [PREFIX.as_bytes(), config.key().as_ref(), candy_machine.data.uuid.as_bytes()],
+        seeds = [PREFIX.as_bytes(), candy_machine.config.key().as_ref(), candy_machine.data.uuid.as_bytes()],
         bump = candy_machine.bump,
     )]
     candy_machine: Account<'info, CandyMachine>,
     #[account(mut)]
-    wallet: UncheckedAccount<'info>,
+    payer: Signer<'info>,
     clock: Sysvar<'info, Clock>,
 }
 
