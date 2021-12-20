@@ -49,6 +49,17 @@ pub mod nft_candy_machine {
             }
         }
 
+        match candy_machine.data.whitelist_sale_end_date {
+            None => {}
+            Some(val) => {
+                if clock.unix_timestamp < val {
+                    if candy_machine.data.whitelist.contains(ctx.accounts.payer.key) {
+                        return Err(ErrorCode::CandyMachineNotWhitelisted.into());
+                    }
+                }
+            }
+        }
+
         if candy_machine.items_redeemed >= candy_machine.data.items_available {
             return Err(ErrorCode::CandyMachineEmpty.into());
         }
@@ -218,6 +229,7 @@ pub mod nft_candy_machine {
         ctx: Context<UpdateCandyMachine>,
         price: Option<u64>,
         go_live_date: Option<i64>,
+        whitelist_sale_end_date: Option<i64>,
     ) -> ProgramResult {
         let candy_machine = &mut ctx.accounts.candy_machine;
 
@@ -228,6 +240,40 @@ pub mod nft_candy_machine {
         if let Some(go_l) = go_live_date {
             msg!("Go live date changed to {}", go_l);
             candy_machine.data.go_live_date = Some(go_l)
+        }
+
+        if let Some(go_l) = whitelist_sale_end_date {
+            msg!("Whitelist end date changed to {}", go_l);
+            candy_machine.data.whitelist_sale_end_date = Some(go_l)
+        }
+        Ok(())
+    }
+
+    pub fn add_wallet_to_whitelist<'info>(
+        ctx: Context<'_, '_, '_, 'info, AddWalletToWhitelist<'info>>,
+        wallet: Pubkey,
+    ) -> ProgramResult {
+        let candy_machine = &mut ctx.accounts.candy_machine;
+        let clock = &ctx.accounts.clock;
+
+        match candy_machine.data.go_live_date {
+            None => {
+                msg!("Candy machine is not live yet");
+                return Ok(());
+            }
+            Some(val) => {
+                if clock.unix_timestamp < val {
+                    msg!("Candy machine is not live yet");
+                    return Ok(());
+                }
+            }
+        }
+
+        if !candy_machine.data.whitelist.contains(&wallet) {
+            candy_machine.data.whitelist.push(wallet);
+            msg!("Wallet added to whitelist!");
+        } else {
+            msg!("Wallet already in whitelist!");
         }
         Ok(())
     }
@@ -531,6 +577,22 @@ pub struct UpdateCandyMachine<'info> {
     authority: AccountInfo<'info>,
 }
 
+#[derive(Accounts)]
+pub struct AddWalletToWhitelist<'info> {
+    config: Account<'info, Config>,
+    #[account(
+        mut,
+        has_one = config,
+        has_one = wallet,
+        seeds = [PREFIX.as_bytes(), config.key().as_ref(), candy_machine.data.uuid.as_bytes()],
+        bump = candy_machine.bump,
+    )]
+    candy_machine: Account<'info, CandyMachine>,
+    #[account(mut)]
+    wallet: UncheckedAccount<'info>,
+    clock: Sysvar<'info, Clock>,
+}
+
 #[account]
 #[derive(Default)]
 pub struct CandyMachine {
@@ -549,6 +611,8 @@ pub struct CandyMachineData {
     pub price: u64,
     pub items_available: u64,
     pub go_live_date: Option<i64>,
+    pub whitelist_sale_end_date: Option<i64>,
+    pub whitelist: Vec<Pubkey>,
 }
 
 pub const CONFIG_ARRAY_START: usize = 32 + // authority
@@ -655,6 +719,8 @@ pub enum ErrorCode {
     CandyMachineEmpty,
     #[msg("Candy machine is not live yet!")]
     CandyMachineNotLiveYet,
+    #[msg("Account is not whitelisted for candy machine!")]
+    CandyMachineNotWhitelisted,
     #[msg("Number of config lines must be at least number of items available")]
     ConfigLineMismatch,
 }
