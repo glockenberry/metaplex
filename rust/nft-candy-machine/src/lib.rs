@@ -278,34 +278,6 @@ pub mod nft_candy_machine {
         Ok(())
     }
 
-    pub fn wallet_is_whitelisted<'info>(
-        ctx: Context<'_, '_, '_, 'info, AddWalletToWhitelist<'info>>
-    ) -> ProgramResult {
-        let candy_machine = &mut ctx.accounts.candy_machine;
-        let clock = &ctx.accounts.clock;
-        let wallet = &ctx.accounts.payer;
-
-        match candy_machine.data.go_live_date {
-            None => {
-                msg!("Candy machine is not live yet");
-                return Ok(());
-            }
-            Some(val) => {
-                if clock.unix_timestamp < val {
-                    msg!("Candy machine is not live yet");
-                    return Ok(());
-                }
-            }
-        }
-
-        if candy_machine.data.whitelist.contains(&wallet.key()) {
-            msg!("true");
-        } else {
-            msg!("false");
-        }
-        Ok(())
-    }
-
     pub fn initialize_config(ctx: Context<InitializeConfig>, data: ConfigData) -> ProgramResult {
         let config_info = &mut ctx.accounts.config;
         if data.uuid.len() != 6 {
