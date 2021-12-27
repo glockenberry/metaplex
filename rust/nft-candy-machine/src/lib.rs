@@ -256,16 +256,10 @@ pub mod nft_candy_machine {
         let clock = &ctx.accounts.clock;
         let wallet = &ctx.accounts.payer;
 
-        match candy_machine.data.go_live_date {
-            None => {
-                msg!("Candy machine is not live yet");
+        if let Some(val) = candy_machine.data.go_live_date {
+            if clock.unix_timestamp > val {
+                msg!("Candy machine is already live");
                 return Ok(());
-            }
-            Some(val) => {
-                if clock.unix_timestamp < val {
-                    msg!("Candy machine is not live yet");
-                    return Ok(());
-                }
             }
         }
 
