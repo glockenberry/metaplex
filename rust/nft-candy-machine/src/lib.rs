@@ -573,11 +573,6 @@ pub struct UpdateCandyMachine<'info> {
 
 #[derive(Accounts)]
 pub struct AddWalletToWhitelist<'info> {
-    #[account(
-        mut,
-        seeds = [PREFIX.as_bytes(), candy_machine.config.key().as_ref(), candy_machine.data.uuid.as_bytes()],
-        bump = candy_machine.bump,
-    )]
     candy_machine: Account<'info, CandyMachine>,
     #[account(mut)]
     payer: Signer<'info>,
