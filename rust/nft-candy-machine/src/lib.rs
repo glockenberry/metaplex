@@ -55,15 +55,6 @@ pub mod nft_candy_machine {
                 if clock.unix_timestamp < val {
                     if !candy_machine.data.whitelist.contains(ctx.accounts.payer.key) {
                         return Err(ErrorCode::NotWhitelisted.into());
-                    } else {
-                        // If there is a quota system
-                        if let Some(quota_limit) = candy_machine.data.quota_limit {
-                            let user_quota_used = candy_machine.data.quota_usage.get(ctx.accounts.payer.key).unwrap_or(&0).clone();
-                            if user_quota_used >= quota_limit {
-                                return Err(ErrorCode::MintQuotaExceeded.into());
-                            }
-                            candy_machine.data.quota_usage.insert(ctx.accounts.payer.key.clone(), user_quota_used + 1);
-                        }
                     }
                 }
             }
@@ -647,8 +638,6 @@ pub struct CandyMachineData {
     pub go_live_date: Option<i64>,
     pub whitelist_sale_end_date: Option<i64>,
     pub whitelist: Vec<Pubkey>,
-    pub quota_usage: std::collections::BTreeMap<Pubkey, u32>,
-    pub quota_limit: Option<u32>,
 }
 
 pub const CONFIG_ARRAY_START: usize = 32 + // authority
@@ -757,8 +746,6 @@ pub enum ErrorCode {
     CandyMachineNotLiveYet,
     #[msg("Account is not whitelisted for candy machine!")]
     NotWhitelisted,
-    #[msg("Account has reached mint limit!")]
-    MintQuotaExceeded,
     #[msg("Number of config lines must be at least number of items available")]
     ConfigLineMismatch,
 }
